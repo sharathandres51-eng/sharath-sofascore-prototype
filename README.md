@@ -28,8 +28,8 @@ Make sure you have **Python 3.10+** installed. You will also need an **OpenAI AP
 First, clone the repository and navigate into the folder:
 
 ```bash
-git clone https://github.com/sharathandres51-eng/sharath-duolingo-prototype.git
-cd sharath-duolingo-prototype
+git clone https://github.com/sharathandres51-eng/sharath-sofascore-prototype.git
+cd sharath-sofascore-prototype
 ```
 
 ### 2. Create a Virtual Environment
