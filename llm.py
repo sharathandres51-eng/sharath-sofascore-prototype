@@ -8,8 +8,8 @@ client = OpenAI(api_key=st.secrets.get("OPENAI_API_KEY", os.environ.get("OPENAI_
 
 def generate_tactical_breakdown(match_stats_json, home_team, away_team, home_score, away_score):
     """
-    Sends structured match statistics to the LLM and 
-    returns a formatted tactical breakdown in Markdown.
+    Takes the structured match stats and asks the LLM to write a tactical breakdown.
+    Returns the generated breakdown as a formatted Markdown string.
     """
     
     prompt = f"""
@@ -42,12 +42,12 @@ def generate_tactical_breakdown(match_stats_json, home_team, away_team, home_sco
 
     try:
         response = client.chat.completions.create(
-            model="gpt-4o-mini",  # Fast and capable model
+            model="gpt-4o-mini",  # Keeping it on mini for speed and cost efficiency
             messages=[
                 {"role": "system", "content": "You are an elite football tactical analyst covering La Liga."},
                 {"role": "user", "content": prompt}
             ],
-            temperature=0.3, # Low temperature for analytical consistency
+            temperature=0.3, # We want the analysis to be factual and consistent, so lower temp is better
             max_tokens=1500
         )
         return response.choices[0].message.content

@@ -56,7 +56,9 @@ def get_flag_emoji(country_name):
         return chr(ord(val[0]) + 127397) + chr(ord(val[1]) + 127397)
     return val
 
-# --- Sidebar: Team & Match Selector ---
+# ---------------------------------------------------------
+# Sidebar Setup: Pick the team and see their matches
+# ---------------------------------------------------------
 st.sidebar.header("Configuration")
 
 try:
@@ -70,14 +72,15 @@ try:
         st.error("Failed to load matches.")
         st.stop()
 
-    # Create a mapping for easier extraction
+    # Quick helper to safely grab the names out of the nested dict
     def extract_home_team(row): return row.get("home_team", {}).get("home_team_name", "Unknown")
     def extract_away_team(row): return row.get("away_team", {}).get("away_team_name", "Unknown")
     
     df_matches["home_team_name"] = df_matches.apply(extract_home_team, axis=1)
     df_matches["away_team_name"] = df_matches.apply(extract_away_team, axis=1)
 
-    # 1. Team Selection
+    # Let the user pick a team from the dropdown. We default to Barcelona since 
+    # the free StatsBomb La Liga dataset revolves around Messi's matches.
     all_teams = sorted(list(set(df_matches["home_team_name"].tolist() + df_matches["away_team_name"].tolist())))
     
     try:
@@ -87,13 +90,13 @@ try:
         
     selected_team = st.sidebar.selectbox("Select Team", all_teams, index=default_idx)
 
-    # 2. Match Selection (Filtered by selected team)
+    # Filter down to just the matches involving the team they picked
     team_matches = df_matches[
         (df_matches["home_team_name"] == selected_team) | 
         (df_matches["away_team_name"] == selected_team)
     ].copy()
 
-    # Sort matches reverse chronologically (latest to earliest)
+    # Show the newest matches at the top of the list
     if "match_date" in team_matches.columns:
         team_matches = team_matches.sort_values(by="match_date", ascending=False)
 
@@ -167,15 +170,15 @@ if st.session_state["selected_match_id"] is None:
                     st.rerun()
 
 else:
-    # State 2: Show Specific Match Details
-    st.button("⬅️ Back to Matches", on_click=go_back)
+    # State 2: Deep dive into a single match
+    st.button("Back to Matches", on_click=go_back)
     
     selected_match_row = df_matches[df_matches["match_id"] == st.session_state["selected_match_id"]].iloc[0]
     match_id = selected_match_row["match_id"]
     
     st.header("Match Overview")
 
-    # Extract basic info
+    # Pull out the high-level match info
     home_team = selected_match_row.get("home_team_name", "N/A")
     away_team = selected_match_row.get("away_team_name", "N/A")
     home_score = selected_match_row.get("home_score", 0)
@@ -183,7 +186,7 @@ else:
     match_date = selected_match_row.get("match_date", "N/A")
 
     # ---------------------------------------------------
-    # MATCH SCOREBOARD
+    # Huge visual scoreboard at the top
     # ---------------------------------------------------
     st.markdown(f"<p style='text-align: center; color: #888; margin-bottom: 0px;'>La Liga 2018/19 &bull; {match_date}</p>", unsafe_allow_html=True)
     
@@ -205,7 +208,7 @@ else:
     st.divider()
 
     st.subheader("Match Events Data")
-    # Load events and lineups for this match
+    # Grab all the raw event actions and starting lineups for this specific game
     with st.spinner(f"Loading event data and lineups for match {match_id}..."):
         events_data = load_events(match_id)
         from data_processing import load_lineups, plot_average_positions
@@ -216,7 +219,7 @@ else:
     else:
         st.success(f"Successfully loaded {len(events_data)} events!")
         
-        # Build Player-to-Flag dictionary
+        # Build a quick dictionary mapping player names to their country flag emojis
         player_flags = {}
         if lineups:
             for team in lineups:
@@ -230,7 +233,8 @@ else:
             
         st.subheader("Team Comparison")
         
-        # Helper function for SofaScore style stat bars
+        # We use a custom HTML block here instead of st.bar_chart to replicate 
+        # the look of SofaScore's center-originating progress bars
         def render_stat_comparison(stat_name, val1, val2, color1="#1D428A", color2="#C8102E"):
             try:
                 v1, v2 = float(val1), float(val2)
@@ -293,12 +297,12 @@ else:
         
         with st.spinner("Generating pitch maps and lineups..."):
             if lineups:
-                # 1. Extract Lineups DataFrames
-                home_lineup_df = None
-                away_lineup_df = None
+                home_lineup_df, away_lineup_df = None, None
+                
+                # Parse through the nested JSON to pull out the starting 11 for both teams
                 for team in lineups:
                     team_name = team.get("team_name")
-                    # Extract players, ensuring jersey number exists
+                    # Grab players who actually have a jersey number to filter out the bench/manager
                     players = [{"Number": p.get("jersey_number"), "Player": f"{player_flags.get(p.get('player_name'), '🏳️')} {p.get('player_name')}"} 
                                for p in team.get("lineup", []) if p.get("jersey_number") is not None]
                     
@@ -310,7 +314,6 @@ else:
                     elif team_name == away_team:
                         away_lineup_df = df_players
                 
-                # 2. Display Lineups Table
                 st.markdown("##### Starting Lineups")
                 lu_col1, lu_col2 = st.columns(2)
                 with lu_col1:
@@ -322,7 +325,7 @@ else:
                         
                 st.markdown("---")
                 
-                # 3. Generate Pitch Maps
+                # Plot the touch maps using mplsoccer
                 fig_home = plot_average_positions(events_data, lineups, home_team, color="#1D428A")
                 fig_away = plot_average_positions(events_data, lineups, away_team, color="#C8102E")
                 
@@ -343,7 +346,7 @@ else:
             from llm import generate_tactical_breakdown
             import json
             
-            # We send the computed stats, converted to a JSON string for the prompt
+            # Dump the stats into a string so we can inject it straight into the LLM prompt
             match_stats_json = json.dumps(match_stats, indent=2)
             
             breakdown_markdown = generate_tactical_breakdown(

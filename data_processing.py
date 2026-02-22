@@ -5,8 +5,9 @@ import streamlit as st
 BASE_URL = "https://raw.githubusercontent.com/statsbomb/open-data/master/data"
 
 def get_team_logo_url(team_name):
-    """Returns a logo URL for the given La Liga team. 
-    Currently using UI Avatars as a fallback due to network DNS blocking external logo APIs.
+    """
+    Returns a logo URL for the given La Liga team. 
+    Right now we're just falling back to UI Avatars because external APIs keep getting blocked by DNS.
     """
     return f"https://ui-avatars.com/api/?name={team_name.replace(' ', '+')}&background=random&size=128"
 
@@ -20,10 +21,10 @@ def load_competitions():
 
 @st.cache_data
 def get_laliga_1819_info():
-    """Identify competition_id and season_id for La Liga 2018/19."""
+    """Identify out the competition_id and season_id specifically for La Liga 2018/19."""
     df_comps = load_competitions()
     
-    # Filter for La Liga (Spain) and 2018/2019 season
+    # We only care about La Liga for the 18/19 season for this prototype
     laliga = df_comps[
         (df_comps["competition_name"] == "La Liga") & 
         (df_comps["season_name"] == "2018/2019")
@@ -55,7 +56,8 @@ def load_events(match_id):
 
 def compute_match_stats(events, home_team, away_team):
     """
-    Computes structured match statistics from raw StatsBomb event data.
+    Parses the raw StatsBomb event data and builds out structured match statistics.
+    Returns a dictionary mapping each team to their stats.
     """
     stats = {
         home_team: {
@@ -77,7 +79,7 @@ def compute_match_stats(events, home_team, away_team):
         minute = ev.get("minute")
         player = ev.get("player", {}).get("name")
         
-        # Track player involvement
+        # Keep track of how many times a player was involved in an event
         if player:
             stats[team]["player_events"][player] = stats[team]["player_events"].get(player, 0) + 1
             
@@ -110,11 +112,12 @@ def compute_match_stats(events, home_team, away_team):
             if duel_type == "Tackle":
                 stats[team]["tackles"] += 1
 
-    # Sort top players
+    # Sort out the top 3 most involved players for each team
     for t in [home_team, away_team]:
         sorted_players = sorted(stats[t]["player_events"].items(), key=lambda x: x[1], reverse=True)
-        stats[t]["top_players"] = [p[0] for p in sorted_players[:3]] # Top 3 players
-        del stats[t]["player_events"] # Clean up raw counts
+        stats[t]["top_players"] = [p[0] for p in sorted_players[:3]]
+        # We don't need the raw counts anymore, so let's clean them up
+        del stats[t]["player_events"] 
 
     return stats
 
@@ -138,7 +141,7 @@ def plot_average_positions(events, lineups, target_team, color="#1D428A"):
     import matplotlib.pyplot as plt
     import numpy as np
 
-    # 1. Get Jersey Numbers
+    # 1. Grab their jersey numbers
     jersey_nums = {}
     team_lineup = None
     for team in lineups:
@@ -155,14 +158,14 @@ def plot_average_positions(events, lineups, target_team, color="#1D428A"):
         if name and j_num is not None:
             jersey_nums[name] = str(j_num)
 
-    # 2. Extract Events for Starters
-    # We'll use passes and ball receipts to determine "average involvement position"
+    # 2. Extract events for the starting XI
+    # We'll rely on passes and ball receipts to figure out their "average involvement position"
     player_locs = {}
     for ev in events:
         if ev.get("team", {}).get("name") != target_team:
             continue
             
-        # Only use events with locations
+        # Skip events that don't have location coordinates
         if "location" not in ev:
             continue
             
@@ -177,10 +180,10 @@ def plot_average_positions(events, lineups, target_team, color="#1D428A"):
         player_locs[player]["x"].append(loc[0])
         player_locs[player]["y"].append(loc[1])
 
-    # 3. Calculate Averages
+    # 3. Calculate the averages
     avg_locs = []
     for player, locs in player_locs.items():
-        if len(locs["x"]) > 5: # Needs a minimum amount of touches to plot
+        if len(locs["x"]) > 5: # Make sure they had a decent number of touches before plotting
             avg_x = np.mean(locs["x"])
             avg_y = np.mean(locs["y"])
             avg_locs.append({
@@ -190,12 +193,12 @@ def plot_average_positions(events, lineups, target_team, color="#1D428A"):
                 "y": avg_y
             })
 
-    # 4. Draw Pitch
+    # 4. Draw the actual pitch
     pitch = Pitch(pitch_type='statsbomb', pitch_color='#1E1E1E', line_color='#c7d5cc')
     fig, ax = pitch.draw(figsize=(6, 4))
     fig.patch.set_facecolor('#1E1E1E')
     
-    # 5. Plot Nodes
+    # 5. Plot the player nodes on the pitch
     for p in avg_locs:
         pitch.scatter(p["x"], p["y"], ax=ax, color=color, edgecolors='white', s=500, zorder=2)
         pitch.annotate(p["jersey"], xy=(p["x"], p["y"]), ax=ax, color='white', 
