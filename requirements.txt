@@ -1,0 +1,8 @@
+streamlit
+pandas
+requests
+openai
+watchdog
+mplsoccer
+matplotlib
+pycountry
