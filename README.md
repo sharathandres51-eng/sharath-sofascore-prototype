@@ -1,4 +1,4 @@
-# ⚽️ AI Tactical Breakdown Prototype
+# AI Tactical Breakdown Prototype
 
 Welcome to the AI Tactical Breakdown Prototype! 
 
@@ -6,7 +6,7 @@ This project is a feature enhancement concept designed to sit neatly on top of e
 
 That's what this app does. It takes raw, event-level match data, processes the statistics, and then feeds it all into a Large Language Model (OpenAI's GPT-4o-mini) to automatically generate a structured, human-readable tactical breakdown of exactly what happened on the pitch.
 
-## ✨ Features
+## Features
 
 - **Interactive UI:** A clean, modern Streamlit interface styled specifically to mimic the feel of premium football apps like SofaScore.
 - **Advanced Match Stats:** Go beyond the basics with Expected Goals (xG), passing networks, pressure maps, and defensive duel metrics.
@@ -15,7 +15,7 @@ That's what this app does. It takes raw, event-level match data, processes the s
 
 ---
 
-## 🛠️ How to Run Locally
+## How to Run Locally
 
 Want to fire this up on your own machine? It's super simple. 
 
