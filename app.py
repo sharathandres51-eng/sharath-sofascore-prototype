@@ -361,10 +361,37 @@ else:
     st.divider()
 
     # ------------------------------------------------------------------
-    # AI INSIGHTS — three tabs replacing the old single-button approach
+    # AI INSIGHTS — setup shared state and imports before tabs
     # ------------------------------------------------------------------
     import json
     match_stats_json = json.dumps(match_stats, indent=2)
+
+    # Per-match chat history — resets automatically when switching matches
+    chat_key = f"chat_history_{match_id}"
+    if chat_key not in st.session_state:
+        st.session_state[chat_key] = []
+
+    from llm import classify_question_scope, classify_question_intent, answer_match_question, VISUAL_MAP
+    from visualizations import plot_shot_map, plot_xg_timeline, plot_event_timeline, plot_player_involvement
+    from retriever import retrieve
+
+    def _render_intent_chart(visual_type: str):
+        """Renders the chart that corresponds to a classified intent."""
+        if visual_type == "xg_chart":
+            fig = plot_xg_timeline(events_data, home_team, away_team, match_stats)
+        elif visual_type == "shot_map":
+            fig = plot_shot_map(events_data, home_team, away_team)
+        elif visual_type == "event_timeline":
+            fig = plot_event_timeline(match_stats, home_team, away_team)
+        elif visual_type == "player_chart":
+            fig = plot_player_involvement(events_data, home_team, away_team)
+        else:
+            return
+        st.pyplot(fig, use_container_width=True)
+
+    # Chat input lives OUTSIDE the tabs so Streamlit pins it to the
+    # viewport bottom rather than rendering it inline within the tab.
+    question = st.chat_input("e.g. Was the scoreline a fair reflection of the match?")
 
     st.markdown("## 🤖 AI Insights")
     tab1, tab2 = st.tabs(["💬 Ask the Analyst", "📊 Visual Insights"])
@@ -397,45 +424,7 @@ else:
             "Which substitution changed the match?"
         )
 
-        # Bouncing arrow — draws attention to the chat input below on first view
-        st.markdown("""
-        <div style="text-align:center; color:#00b04a; margin: 12px 0 4px 0; font-weight:600;">
-            💬 Type your question below &nbsp;<span class="bounce-arrow">↓</span>
-        </div>
-        <style>
-        @keyframes bounce-arrow {
-            0%, 100% { transform: translateY(0);  }
-            50%       { transform: translateY(7px); }
-        }
-        .bounce-arrow {
-            display: inline-block;
-            animation: bounce-arrow 0.85s ease-in-out 5;
-        }
-        </style>
-        """, unsafe_allow_html=True)
-
-        # Per-match chat history — resets automatically when switching matches
-        chat_key = f"chat_history_{match_id}"
-        if chat_key not in st.session_state:
-            st.session_state[chat_key] = []
-
-        from llm import classify_question_scope, classify_question_intent, answer_match_question, VISUAL_MAP
-        from visualizations import plot_shot_map, plot_xg_timeline, plot_event_timeline, plot_player_involvement
-        from retriever import retrieve
-
-        def _render_intent_chart(visual_type: str):
-            """Renders the chart that corresponds to a classified intent."""
-            if visual_type == "xg_chart":
-                fig = plot_xg_timeline(events_data, home_team, away_team, match_stats)
-            elif visual_type == "shot_map":
-                fig = plot_shot_map(events_data, home_team, away_team)
-            elif visual_type == "event_timeline":
-                fig = plot_event_timeline(match_stats, home_team, away_team)
-            elif visual_type == "player_chart":
-                fig = plot_player_involvement(events_data, home_team, away_team)
-            else:
-                return
-            st.pyplot(fig, use_container_width=True)
+        st.caption("Use the chat bar at the bottom of the page to ask your question.")
 
         # Render existing conversation (with chart replay)
         for msg in st.session_state[chat_key]:
@@ -450,8 +439,8 @@ else:
                         for doc in msg["sources"]:
                             st.markdown(f"> {doc[:300]}…")
 
-        # New input — scope gate → intent classify → inline chart → text answer
-        if question := st.chat_input("e.g. Was the scoreline a fair reflection of the match?"):
+        # Process a new question submitted via the sticky bottom input
+        if question:
             with st.chat_message("user"):
                 st.markdown(question)
             st.session_state[chat_key].append({"role": "user", "content": question})
