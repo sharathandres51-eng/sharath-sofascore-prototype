@@ -6,9 +6,12 @@ st.set_page_config(page_title="AI Tactical Breakdown", layout="wide")
 
 header_html = """
 <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 5px;">
-    <img src="https://upload.wikimedia.org/wikipedia/en/0/0d/Sofascorelogo.png" height="28" style="object-fit: contain;">
-    <span style="font-size: 28px; font-weight: 300; color: #666;">x</span>
-    <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/0/0f/LaLiga_logo_2023.svg/1024px-LaLiga_logo_2023.svg.png" height="32" style="object-fit: contain;">
+    <span style="font-size: 1.25em; font-weight: 900; color: #00A3E0; letter-spacing: 0.5px;">SofaScore</span>
+    <span style="font-size: 24px; font-weight: 300; color: #666;">×</span>
+    <span style="font-size: 1.1em; font-weight: 900; color: #FF4B00; letter-spacing: 1.5px;
+                 border: 2.5px solid #FF4B00; padding: 3px 10px; border-radius: 6px; line-height: 1;">
+        LaLiga
+    </span>
     <h1 style="margin: 0; padding: 0; font-size: 2.2em; margin-left: 10px;">AI Tactical Breakdown &bull; 2018/19</h1>
 </div>
 """
@@ -172,7 +175,22 @@ if st.session_state["selected_match_id"] is None:
 else:
     # State 2: Deep dive into a single match
     st.button("Back to Matches", on_click=go_back)
-    
+
+    # Pulse the chat input bar to draw the user's eye on first load
+    st.markdown("""
+    <style>
+    @keyframes chat-input-pulse {
+        0%   { box-shadow: 0 0 0  0px rgba(0, 176, 74, 0.00); }
+        50%  { box-shadow: 0 0 0 14px rgba(0, 176, 74, 0.45); }
+        100% { box-shadow: 0 0 0 28px rgba(0, 176, 74, 0.00); }
+    }
+    section[data-testid="stBottom"] > div {
+        animation: chat-input-pulse 1.4s ease-out 4;
+        border-radius: 14px;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
     selected_match_row = df_matches[df_matches["match_id"] == st.session_state["selected_match_id"]].iloc[0]
     match_id = selected_match_row["match_id"]
     
@@ -262,10 +280,10 @@ else:
                     </span>
                 </div>
                 <div style="display: flex; justify-content: space-between; gap: 10px; align-items: center;">
-                    <div style="flex: 1; display: flex; justify-content: flex-end; background-color: #2b2b2b; height: 8px; border-radius: 4px; overflow: hidden;">
+                    <div style="flex: 1; display: flex; justify-content: flex-end; background-color: #222438; height: 8px; border-radius: 4px; overflow: hidden;">
                         <div style="width: {p1}%; background-color: {color1}; height: 100%; border-radius: 4px;"></div>
                     </div>
-                    <div style="flex: 1; display: flex; justify-content: flex-start; background-color: #2b2b2b; height: 8px; border-radius: 4px; overflow: hidden;">
+                    <div style="flex: 1; display: flex; justify-content: flex-start; background-color: #222438; height: 8px; border-radius: 4px; overflow: hidden;">
                         <div style="width: {p2}%; background-color: {color2}; height: 100%; border-radius: 4px;"></div>
                     </div>
                 </div>
@@ -273,11 +291,11 @@ else:
             """
             st.markdown(html, unsafe_allow_html=True)
             
-        render_stat_comparison("Shots", match_stats[home_team]["shots"], match_stats[away_team]["shots"], "#1ea64b", "#4c4cf8")
-        render_stat_comparison("Expected Goals (xG)", match_stats[home_team]["xg"], match_stats[away_team]["xg"], "#1ea64b", "#4c4cf8")
-        render_stat_comparison("Passes", match_stats[home_team]["passes"], match_stats[away_team]["passes"], "#1ea64b", "#4c4cf8")
-        render_stat_comparison("Pressures", match_stats[home_team]["pressures"], match_stats[away_team]["pressures"], "#1ea64b", "#4c4cf8")
-        render_stat_comparison("Tackles", match_stats[home_team]["tackles"], match_stats[away_team]["tackles"], "#1ea64b", "#4c4cf8")
+        render_stat_comparison("Shots", match_stats[home_team]["shots"], match_stats[away_team]["shots"], "#00b04a", "#5263ff")
+        render_stat_comparison("Expected Goals (xG)", match_stats[home_team]["xg"], match_stats[away_team]["xg"], "#00b04a", "#5263ff")
+        render_stat_comparison("Passes", match_stats[home_team]["passes"], match_stats[away_team]["passes"], "#00b04a", "#5263ff")
+        render_stat_comparison("Pressures", match_stats[home_team]["pressures"], match_stats[away_team]["pressures"], "#00b04a", "#5263ff")
+        render_stat_comparison("Tackles", match_stats[home_team]["tackles"], match_stats[away_team]["tackles"], "#00b04a", "#5263ff")
         
         st.subheader("Top Involved Players")
         col_p1, col_p2 = st.columns(2)
@@ -326,8 +344,9 @@ else:
                 st.markdown("---")
                 
                 # Plot the touch maps using mplsoccer
-                fig_home = plot_average_positions(events_data, lineups, home_team, color="#1D428A")
-                fig_away = plot_average_positions(events_data, lineups, away_team, color="#C8102E")
+                from visualizations import COLOURS
+                fig_home = plot_average_positions(events_data, lineups, home_team, color=COLOURS["home"])
+                fig_away = plot_average_positions(events_data, lineups, away_team, color=COLOURS["away"])
                 
                 pitch_col1, pitch_col2 = st.columns(2)
                 with pitch_col1:
@@ -341,18 +360,184 @@ else:
 
     st.divider()
 
-    if st.button("Generate AI Tactical Breakdown", type="primary", use_container_width=True):
-        with st.spinner(f"Analyzing tactics for {home_team} vs {away_team}..."):
-            from llm import generate_tactical_breakdown
-            import json
-            
-            # Dump the stats into a string so we can inject it straight into the LLM prompt
-            match_stats_json = json.dumps(match_stats, indent=2)
-            
-            breakdown_markdown = generate_tactical_breakdown(
-                match_stats_json, home_team, away_team, home_score, away_score
-            )
-            
-            st.markdown("---")
-            st.markdown("## 🤖 AI Tactical Breakdown")
-            st.markdown(breakdown_markdown)
+    # ------------------------------------------------------------------
+    # AI INSIGHTS — three tabs replacing the old single-button approach
+    # ------------------------------------------------------------------
+    import json
+    match_stats_json = json.dumps(match_stats, indent=2)
+
+    st.markdown("## 🤖 AI Insights")
+    tab1, tab2 = st.tabs(["💬 Ask the Analyst", "📊 Visual Insights"])
+
+    # ------------------------------------------------------------------
+    # TAB 1 – Ask the Analyst (RAG-powered + scope-classified Q&A)
+    # ------------------------------------------------------------------
+    with tab1:
+        # Scope info box — shows users what's fair game before they type
+        with st.expander("ℹ️ What can I ask?", expanded=False):
+            st.markdown("""
+**In scope ✅**
+- Match tactics, formations, and strategy
+- Player and team performance in this match
+- Statistics: shots, xG, passes, pressures, tackles
+- Goals, substitutions, and key match events
+- Tactical concepts: pressing, transitions, low block, overloads, half-spaces
+
+**Out of scope ❌**
+- Politics, news, or general world knowledge
+- Coding, technology, or non-football topics
+- Player transfers, personal matters, or off-pitch affairs
+- Anything unrelated to this specific match
+            """)
+
+        st.markdown(
+            "**Example questions:** Was the result fair based on xG? &nbsp;·&nbsp; "
+            "Which team dominated tactically? &nbsp;·&nbsp; "
+            "Why did the winning team win? &nbsp;·&nbsp; "
+            "Which substitution changed the match?"
+        )
+
+        # Bouncing arrow — draws attention to the chat input below on first view
+        st.markdown("""
+        <div style="text-align:center; color:#00b04a; margin: 12px 0 4px 0; font-weight:600;">
+            💬 Type your question below &nbsp;<span class="bounce-arrow">↓</span>
+        </div>
+        <style>
+        @keyframes bounce-arrow {
+            0%, 100% { transform: translateY(0);  }
+            50%       { transform: translateY(7px); }
+        }
+        .bounce-arrow {
+            display: inline-block;
+            animation: bounce-arrow 0.85s ease-in-out 5;
+        }
+        </style>
+        """, unsafe_allow_html=True)
+
+        # Per-match chat history — resets automatically when switching matches
+        chat_key = f"chat_history_{match_id}"
+        if chat_key not in st.session_state:
+            st.session_state[chat_key] = []
+
+        from llm import classify_question_scope, classify_question_intent, answer_match_question, VISUAL_MAP
+        from visualizations import plot_shot_map, plot_xg_timeline, plot_event_timeline, plot_player_involvement
+        from retriever import retrieve
+
+        def _render_intent_chart(visual_type: str):
+            """Renders the chart that corresponds to a classified intent."""
+            if visual_type == "xg_chart":
+                fig = plot_xg_timeline(events_data, home_team, away_team, match_stats)
+            elif visual_type == "shot_map":
+                fig = plot_shot_map(events_data, home_team, away_team)
+            elif visual_type == "event_timeline":
+                fig = plot_event_timeline(match_stats, home_team, away_team)
+            elif visual_type == "player_chart":
+                fig = plot_player_involvement(events_data, home_team, away_team)
+            else:
+                return
+            st.pyplot(fig, use_container_width=True)
+
+        # Render existing conversation (with chart replay)
+        for msg in st.session_state[chat_key]:
+            with st.chat_message(msg["role"]):
+                if msg["role"] == "assistant":
+                    visual_type = VISUAL_MAP.get(msg.get("intent") or "")
+                    if visual_type:
+                        _render_intent_chart(visual_type)
+                st.markdown(msg["content"])
+                if msg["role"] == "assistant" and msg.get("sources"):
+                    with st.expander("📚 Tactical concepts used in this answer"):
+                        for doc in msg["sources"]:
+                            st.markdown(f"> {doc[:300]}…")
+
+        # New input — scope gate → intent classify → inline chart → text answer
+        if question := st.chat_input("e.g. Was the scoreline a fair reflection of the match?"):
+            with st.chat_message("user"):
+                st.markdown(question)
+            st.session_state[chat_key].append({"role": "user", "content": question})
+
+            with st.chat_message("assistant"):
+                in_scope, refusal = classify_question_scope(question)
+
+                if not in_scope:
+                    answer = refusal
+                    retrieved_docs = []
+                    intent = None
+                    st.markdown(answer)
+                else:
+                    intent = classify_question_intent(question)
+                    visual_type = VISUAL_MAP.get(intent)
+
+                    # Chart first — contextualises the text answer below it
+                    if visual_type:
+                        with st.spinner("Generating visualisation..."):
+                            _render_intent_chart(visual_type)
+
+                    with st.spinner("Retrieving tactical context and generating answer..."):
+                        retrieved_docs = retrieve(question, top_k=2)
+                        answer = answer_match_question(
+                            question=question,
+                            match_stats_json=match_stats_json,
+                            retrieved_docs=retrieved_docs,
+                            home_team=home_team,
+                            away_team=away_team,
+                            home_score=home_score,
+                            away_score=away_score,
+                        )
+                    st.markdown(answer)
+                    if retrieved_docs:
+                        with st.expander("📚 Tactical concepts used in this answer"):
+                            for doc in retrieved_docs:
+                                st.markdown(f"> {doc[:300]}…")
+
+            st.session_state[chat_key].append({
+                "role": "assistant",
+                "content": answer,
+                "sources": retrieved_docs,
+                "intent": intent,
+            })
+
+    # ------------------------------------------------------------------
+    # TAB 2 – Visual Insights
+    # ------------------------------------------------------------------
+    with tab2:
+        st.markdown("Select a chart to generate. Each is computed directly from the match event data.")
+
+        from visualizations import plot_shot_map, plot_xg_timeline, plot_event_timeline
+
+        # --- Shot Map ---
+        st.markdown("#### Shot Map")
+        st.markdown(
+            "Shot locations for both teams. Circle size = xG value; gold stars = goals."
+        )
+        if st.button("Generate Shot Map", key=f"btn_shot_{match_id}", use_container_width=True):
+            st.session_state[f"viz_{match_id}_shot"] = True
+        if st.session_state.get(f"viz_{match_id}_shot"):
+            with st.spinner("Rendering..."):
+                st.pyplot(plot_shot_map(events_data, home_team, away_team), use_container_width=True)
+
+        st.markdown("---")
+
+        # --- xG Timeline ---
+        st.markdown("#### Cumulative xG Timeline")
+        st.markdown(
+            "How xG built up across the 90 minutes. Steep steps = flurries of chances."
+        )
+        if st.button("Generate xG Timeline", key=f"btn_xg_{match_id}", use_container_width=True):
+            st.session_state[f"viz_{match_id}_xg"] = True
+        if st.session_state.get(f"viz_{match_id}_xg"):
+            with st.spinner("Rendering..."):
+                st.pyplot(plot_xg_timeline(events_data, home_team, away_team, match_stats), use_container_width=True)
+
+        st.markdown("---")
+
+        # --- Event Timeline ---
+        st.markdown("#### Match Event Timeline")
+        st.markdown(
+            "Goals and substitutions plotted across match minutes."
+        )
+        if st.button("Generate Event Timeline", key=f"btn_events_{match_id}", use_container_width=True):
+            st.session_state[f"viz_{match_id}_events"] = True
+        if st.session_state.get(f"viz_{match_id}_events"):
+            with st.spinner("Rendering..."):
+                st.pyplot(plot_event_timeline(match_stats, home_team, away_team), use_container_width=True)

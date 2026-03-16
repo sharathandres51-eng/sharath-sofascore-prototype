@@ -194,16 +194,17 @@ def plot_average_positions(events, lineups, target_team, color="#1D428A"):
             })
 
     # 4. Draw the actual pitch
-    pitch = Pitch(pitch_type='statsbomb', pitch_color='#1E1E1E', line_color='#c7d5cc')
+    from visualizations import COLOURS
+    pitch = Pitch(pitch_type='statsbomb', pitch_color=COLOURS["bg"], line_color=COLOURS["pitch_line"])
     fig, ax = pitch.draw(figsize=(6, 4))
-    fig.patch.set_facecolor('#1E1E1E')
-    
+    fig.patch.set_facecolor(COLOURS["bg"])
+
     # 5. Plot the player nodes on the pitch
     for p in avg_locs:
-        pitch.scatter(p["x"], p["y"], ax=ax, color=color, edgecolors='white', s=500, zorder=2)
-        pitch.annotate(p["jersey"], xy=(p["x"], p["y"]), ax=ax, color='white', 
+        pitch.scatter(p["x"], p["y"], ax=ax, color=color, edgecolors=COLOURS["text"], s=500, zorder=2)
+        pitch.annotate(p["jersey"], xy=(p["x"], p["y"]), ax=ax, color=COLOURS["text"],
                        va='center', ha='center', fontsize=12, fontweight='bold', zorder=3)
-        
-    ax.set_title(f"{target_team}", color="white", fontsize=14, loc="center")
+
+    ax.set_title(f"{target_team}", color=COLOURS["text"], fontsize=14, loc="center")
     
     return fig

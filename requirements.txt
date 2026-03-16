@@ -6,3 +6,5 @@ watchdog
 mplsoccer
 matplotlib
 pycountry
+faiss-cpu
+numpy
