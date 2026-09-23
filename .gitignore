@@ -3,3 +3,9 @@ __pycache__/
 .venv/
 .env
 .idea/
+
+.DS_Store
+.idea/
+__pycache__/
+*.pyc
+.env
